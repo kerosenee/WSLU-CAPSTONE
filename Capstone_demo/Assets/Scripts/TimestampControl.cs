@@ -54,6 +54,14 @@ public class TimestampControl : MonoBehaviour
         timeDisplays[activeIndex].SetActive(true);
     }
 
+    // Full timestamp as digits, e.g. "075420" for 07:54:20
+    public string GetTimestamp()
+    {
+        string timestamp = "";
+        foreach (TimeDisplay display in timeDisplays) timestamp += display.currentValue.ToString("D" + display.maxValue.ToString().Length);
+        return timestamp;
+    }
+
     void Update()
     {
         TimeDisplay active = timeDisplays[activeIndex];
