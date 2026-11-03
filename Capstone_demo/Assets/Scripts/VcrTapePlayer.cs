@@ -69,6 +69,11 @@ public class VcrTapePlayer : MonoBehaviour
     public TMP_Text timestampText; // on-screen timestamp, put it on the overlay canvas above the RawImage
 
     public TMP_Text tapeInsertedText;
+    public TMP_Text instructionsText; // text is blank while no tape is inserted
+    public TMP_Text searchText;       // "FF" / "RW" while the tape is being wound or searched, blank otherwise
+    public GameObject playIcon;       // footage corner icons: play, pause, and fast-forward (mirrored for rewind)
+    public GameObject searchIcon;
+    public GameObject pauseIcon;
     public VideoPlayer videoPlayer;
 
     // Tape seconds per real second
@@ -82,7 +87,10 @@ public class VcrTapePlayer : MonoBehaviour
 
     State state;
     bool searching;
+    int searchDirection; // 1 = fast-forward, -1 = rewind, 0 = not searching
+    int scanDirection;   // like searchDirection, but also while stopped, and only while the tape actually moves
     bool paused;
+    string instructions;
     VcrTape activeTape; // null = no tape
     VcrClip playingClip;
     bool clipStarted;
@@ -97,7 +105,10 @@ public class VcrTapePlayer : MonoBehaviour
         videoPlayer.renderMode = VideoRenderMode.RenderTexture;
         videoPlayer.targetTexture = videoTexture;
         videoPlayer.playbackSpeed = playSpeed;
-        
+
+        // Keep the instructions as written in the scene, but blank until a tape is inserted
+        instructions = instructionsText.text;
+        instructionsText.text = "";
     }
 
     void Update()
@@ -111,8 +122,14 @@ public class VcrTapePlayer : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.O)) Stop();
         if (Input.GetKeyDown(KeyCode.Space)) TogglePause();
 
+        scanDirection = 0;
         if (activeTape != null) MoveTape();
         UpdateOverlay();
+        if (searchText != null) searchText.text = scanDirection > 0 ? "FF" : scanDirection < 0 ? "RW" : "";
+        searchIcon.transform.localScale = new Vector3(searchDirection < 0 ? -1f : 1f, 1f, 1f);
+        playIcon.SetActive(!paused && !searching);
+        searchIcon.SetActive(searching);
+        pauseIcon.SetActive(paused);
         counter.Show(activeTape != null ? activeTape.position : 0f);
     }
 
@@ -132,6 +149,7 @@ public class VcrTapePlayer : MonoBehaviour
                 tapeInsertedText.text = "[no tape inserted]";
             }
         }
+        instructionsText.text = activeTape != null ? instructions : "";
         Debug.Log("Active tape: " + (activeTape != null ? activeTape.name : "none"));
     }
 
@@ -174,12 +192,15 @@ public class VcrTapePlayer : MonoBehaviour
         // Arrows while held: search while playing, fast wind while stopped
         int direction = (Input.GetKey(KeyCode.RightArrow) ? 1 : 0) - (Input.GetKey(KeyCode.LeftArrow) ? 1 : 0);
         searching = state == State.Playing && !paused && direction != 0;
+        searchDirection = searching ? direction : 0;
         if (paused) return;
 
         float speed = direction * windSpeed;
         if (state == State.Playing) speed = searching ? direction * searchSpeed : playSpeed;
 
+        float before = activeTape.position;
         activeTape.position = Mathf.Clamp(activeTape.position + speed * Time.deltaTime, 0f, activeTape.lengthSeconds);
+        if (direction != 0 && activeTape.position != before) scanDirection = direction;
 
         // Ran out of tape
         bool atEnd = (speed > 0f && activeTape.position >= activeTape.lengthSeconds) || (speed < 0f && activeTape.position <= 0f);
