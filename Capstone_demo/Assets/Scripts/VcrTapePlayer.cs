@@ -80,6 +80,7 @@ public class VcrTapePlayer : MonoBehaviour
 
     State state;
     bool searching;
+    bool paused;
     VcrTape activeTape; // null = no tape
     VcrClip playingClip;
     bool clipStarted;
@@ -105,6 +106,7 @@ public class VcrTapePlayer : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.P)) Play();
         if (Input.GetKeyDown(KeyCode.O)) Stop();
+        if (Input.GetKeyDown(KeyCode.Space)) TogglePause();
 
         if (activeTape != null) MoveTape();
         UpdateOverlay();
@@ -121,12 +123,29 @@ public class VcrTapePlayer : MonoBehaviour
 
     public void Play()
     {
-        if (HasTape()) state = State.Playing;
+        if (!HasTape()) return;
+        state = State.Playing;
+        SetPaused(false); // Play also resumes a paused tape
     }
 
     public void Stop()
     {
         state = State.Stopped;
+        paused = false;
+    }
+
+    // Freezes the tape and clip but keeps the overlay up
+    public void TogglePause()
+    {
+        if (state == State.Playing) SetPaused(!paused);
+    }
+
+    void SetPaused(bool value)
+    {
+        paused = value;
+        if (!clipStarted) return;
+        if (paused) videoPlayer.Pause();
+        else videoPlayer.Play();
     }
 
     bool HasTape()
@@ -139,7 +158,8 @@ public class VcrTapePlayer : MonoBehaviour
     {
         // Arrows while held: search while playing, fast wind while stopped
         int direction = (Input.GetKey(KeyCode.RightArrow) ? 1 : 0) - (Input.GetKey(KeyCode.LeftArrow) ? 1 : 0);
-        searching = state == State.Playing && direction != 0;
+        searching = state == State.Playing && !paused && direction != 0;
+        if (paused) return;
 
         float speed = direction * windSpeed;
         if (state == State.Playing) speed = searching ? direction * searchSpeed : playSpeed;
@@ -182,7 +202,7 @@ public class VcrTapePlayer : MonoBehaviour
             }
 
             // Wait until the video is loaded, then play it from the tape's position
-            if (!clipStarted && videoPlayer.isPrepared)
+            if (!clipStarted && !paused && videoPlayer.isPrepared)
             {
                 clipStarted = true;
                 clipStartTime = Time.time;
@@ -204,5 +224,6 @@ public class VcrTapePlayer : MonoBehaviour
         if (playingClip == null) return;
         videoPlayer.Stop();
         playingClip = null;
+        clipStarted = false;
     }
 }
