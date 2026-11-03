@@ -67,6 +67,8 @@ public class VcrTapePlayer : MonoBehaviour
 
     public RawImage overlay;
     public TMP_Text timestampText; // on-screen timestamp, put it on the overlay canvas above the RawImage
+
+    public TMP_Text tapeInsertedText;
     public VideoPlayer videoPlayer;
 
     // Tape seconds per real second
@@ -95,6 +97,7 @@ public class VcrTapePlayer : MonoBehaviour
         videoPlayer.renderMode = VideoRenderMode.RenderTexture;
         videoPlayer.targetTexture = videoTexture;
         videoPlayer.playbackSpeed = playSpeed;
+        
     }
 
     void Update()
@@ -118,6 +121,17 @@ public class VcrTapePlayer : MonoBehaviour
     {
         Stop();
         activeTape = Array.Find(tapes, tape => tape.name == tapeName);
+        if (tapeInsertedText != null)
+        {
+            if (activeTape != null)
+            {
+                tapeInsertedText.text = "[" + activeTape.name + " Inserted]";
+            }
+            else
+            {
+                tapeInsertedText.text = "[no tape inserted]";
+            }
+        }
         Debug.Log("Active tape: " + (activeTape != null ? activeTape.name : "none"));
     }
 
@@ -156,6 +170,7 @@ public class VcrTapePlayer : MonoBehaviour
 
     void MoveTape()
     {
+        
         // Arrows while held: search while playing, fast wind while stopped
         int direction = (Input.GetKey(KeyCode.RightArrow) ? 1 : 0) - (Input.GetKey(KeyCode.LeftArrow) ? 1 : 0);
         searching = state == State.Playing && !paused && direction != 0;
